@@ -1,0 +1,12 @@
+{
+    "name": "draco.magic-value-sorcerer",
+    "displayName": "Magic Value Sorcerer",
+    "version": "1.0.0",
+    "author": "Caleb Davidson",
+    "description": "Generator to produce compile time enum-like classes to reduce the usage of magic values.",
+    "license": "MIT",
+    "homepage": "https://github.com/Caleb-Davidson/Magic-Value-Sorcerer",
+    "dependencies": {
+        "com.unity.settings-manager": "2.0.1"
+    }
+}
