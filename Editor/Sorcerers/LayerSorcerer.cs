@@ -1,15 +1,12 @@
-﻿using Magic_Value_Sorcerer.Editor;
-using Magic_Value_Sorcerer.Editor.Sorcerers;
+﻿using JetBrains.Annotations;
 using UnityEditorInternal;
 
-[assembly: RegisterMagicValueSorcerer(typeof(LayerSorcerer))]
-
 namespace Magic_Value_Sorcerer.Editor.Sorcerers {
-public class LayerSorcerer : MagicValueSorcerer{
+[UsedImplicitly]
+public class LayerSorcerer : DefaultMagicValueSorcerer {
     public override string ClassName => "Layers";
-    
-    public override string Generate() {
-        var builder = new ClassBuilder(this);
+
+    protected override string Generate(ClassBuilder builder) {
         foreach (var tag in InternalEditorUtility.layers) {
             builder.AddConst(tag);
         }

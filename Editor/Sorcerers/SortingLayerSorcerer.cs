@@ -1,16 +1,13 @@
 ﻿using System.Reflection;
-using Magic_Value_Sorcerer.Editor;
-using Magic_Value_Sorcerer.Editor.Sorcerers;
+using JetBrains.Annotations;
 using UnityEditorInternal;
 
-[assembly: RegisterMagicValueSorcerer(typeof(SortingLayerSorcerer))]
-
 namespace Magic_Value_Sorcerer.Editor.Sorcerers {
-public class SortingLayerSorcerer : MagicValueSorcerer{
+[UsedImplicitly]
+public class SortingLayerSorcerer : DefaultMagicValueSorcerer {
     public override string ClassName => "SortingLayers";
-    
-    public override string Generate() {
-        var builder = new ClassBuilder(this);
+
+    protected override string Generate(ClassBuilder builder) {
         foreach (var tag in GetSortingLayers()) {
             builder.AddConst(tag);
         }

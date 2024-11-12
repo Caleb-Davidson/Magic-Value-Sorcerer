@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SettingsManagement;
@@ -6,14 +7,15 @@ using UnityEngine;
 
 namespace Magic_Value_Sorcerer.Editor {
 public static class MagicValueSorcererSettings {
-    private const string KEY_BASE = "MagicValueSorcerer";
     private const string ENABLED_KEY = "Enabled";
+    
+    public static event Action? OnSettingsChanged;
     
     private static readonly Settings instance = new("draco.magic-value-sorcerer");
     private static Dictionary<string, IUserSetting> settings = new();
 
     private static string GetFullKey(MagicValueSorcerer sorcerer, string key) =>
-        $"{KEY_BASE}.{sorcerer.Assembly}.{sorcerer.Namespace}.{sorcerer.ClassName}.{key}";
+        $"{sorcerer.GetType().FullName}.{key}";
     
     public static T Get<T>(MagicValueSorcerer sorcerer, string key, T defaultValue) {
         var fullKey = GetFullKey(sorcerer, key);
@@ -29,6 +31,7 @@ public static class MagicValueSorcererSettings {
             settings[fullKey] = new UserSetting<T>(instance, fullKey, value);
         }
         ((UserSetting<T>)settings[fullKey]).value = value;
+        OnSettingsChanged?.Invoke();
     }
     
     public static bool IsSorcererEnabled(MagicValueSorcerer sorcerer) => Get(sorcerer, ENABLED_KEY, true);
@@ -36,7 +39,7 @@ public static class MagicValueSorcererSettings {
         
     [SettingsProvider]
     private static SettingsProvider CreateSettingsProvider() {
-        return new SettingsProvider("Preferences/Magic Value Sorcerer", SettingsScope.User) {
+        return new SettingsProvider("Project/Magic Value Sorcerer", SettingsScope.Project) {
             label = "Magic Value Sorcerer",
             keywords = GetKeywords(),
             guiHandler = SettingsDrawer.Instance.Draw
@@ -46,7 +49,7 @@ public static class MagicValueSorcererSettings {
     private static HashSet<string> GetKeywords() {
         var keywords = new HashSet<string>(new[] { "Magic", "Value", "Sorcerer" });
         foreach (var sorcerer in MagicValueSorcerer.All) {
-            keywords.Add(sorcerer.ClassName);
+            keywords.Add(sorcerer.DisplayName);
         }
 
         return keywords;
@@ -56,12 +59,14 @@ public static class MagicValueSorcererSettings {
         public static SettingsDrawer Instance { get; } = new();
 
         private int selectedTab;
+        private float tabButtonWidth;
+        private float preferencesWindowWidth;
         private readonly MagicValueSorcerer[] sorcerers;
         private readonly string[] sorcererNames;
 
         private SettingsDrawer() {
             sorcerers = MagicValueSorcerer.All;
-            sorcererNames = sorcerers.Select(sorcerer => sorcerer.ClassName).ToArray();
+            sorcererNames = sorcerers.Select(sorcerer => ObjectNames.NicifyVariableName(sorcerer.DisplayName)).ToArray();
         }
 
         public void Draw(string searchContext) {
@@ -69,19 +74,20 @@ public static class MagicValueSorcererSettings {
             var lineRect = EditorGUILayout.GetControlRect(false, 2);
             EditorGUI.DrawRect(lineRect, Color.grey);
             var guiColor = GUI.color;
-            foreach (var sorcerer in MagicValueSorcerer.All) {
+            for (var i = 0; i < sorcerers.Length; i++) {
+                var sorcerer = sorcerers[i];
                 using (new EditorGUILayout.HorizontalScope()) {
                     var enabled = IsSorcererEnabled(sorcerer);
                     if (enabled && sorcerer.NeedsToGenerate()) {
                         GUI.color = new Color(0.9f, 0.2f, 0.2f);
                     }
-                    var newEnabled = EditorGUILayout.Toggle(sorcerer.ClassName, enabled);
+                    var newEnabled = EditorGUILayout.Toggle(sorcererNames[i], enabled);
                     if (newEnabled != enabled) {
                         SetSorcererEnabled(sorcerer, newEnabled);
                     }
                     
                     if (GUILayout.Button("Force Generate")) {
-                        MagicValueGenerator.Generate(sorcerer, true);
+                        sorcerer.Refresh(true);
                     }
                 }
                 GUI.color = guiColor;
@@ -91,8 +97,27 @@ public static class MagicValueSorcererSettings {
 
             using (new EditorGUILayout.VerticalScope("box")) {
                 EditorGUILayout.LabelField("Specific Sorcerer Generator Settings", EditorStyles.boldLabel);
+
+                var currentTab = selectedTab;
+                const int MAX_COLUMNS = 5;
+                for (var i = 0; i < sorcererNames.Length; i += MAX_COLUMNS) {
+                    var names = sorcererNames.Skip(i).Take(MAX_COLUMNS).ToArray();
+
+                    var selectedColumn = -1;
+                    if (selectedTab >= i && selectedTab < i + MAX_COLUMNS) {
+                        selectedColumn = selectedTab % MAX_COLUMNS;
+                    }
+                    
+                    selectedColumn = GUILayout.Toolbar(selectedColumn, names);
+                    
+                    if (selectedColumn != -1) {
+                        selectedTab = i + selectedColumn;
+                    }
+                }
+                if (currentTab != selectedTab) {
+                    GUI.FocusControl(null);
+                }
                 
-                selectedTab = GUILayout.Toolbar(selectedTab, sorcererNames);
                 lineRect = EditorGUILayout.GetControlRect(false, 2);
                 EditorGUI.DrawRect(lineRect, Color.grey);
                 EditorGUILayout.Space();
@@ -112,11 +137,11 @@ public static class MagicValueSorcererSettings {
             
             using (new EditorGUILayout.HorizontalScope()) {
                 if (GUILayout.Button("Generate Needed")) {
-                    MagicValueGenerator.GenerateAll();
+                    Array.ForEach(MagicValueSorcerer.All, sorcerer => sorcerer.Refresh());
                 }
 
                 if (GUILayout.Button("Force Generate All")) {
-                    MagicValueGenerator.GenerateAll(true);
+                    Array.ForEach(MagicValueSorcerer.All, sorcerer => sorcerer.Refresh(true));
                 }
             }
         }

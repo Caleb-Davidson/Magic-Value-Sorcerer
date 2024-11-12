@@ -2,29 +2,26 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Magic_Value_Sorcerer.Editor;
-using Magic_Value_Sorcerer.Editor.Sorcerers;
+using JetBrains.Annotations;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[assembly: RegisterMagicValueSorcerer(typeof(BuildScenesSorcerer))]
-
 namespace Magic_Value_Sorcerer.Editor.Sorcerers {
-public class BuildScenesSorcerer : MagicValueSorcerer {
+[UsedImplicitly]
+public class BuildScenesSorcerer : DefaultMagicValueSorcerer {
     public override string ClassName => "Scenes";
     private const string NAME_FIELD = "NAME";
     private const string PATH_FIELD = "PATH";
     private const string MODE_PARAM = "mode";
-    
-    public override string Generate() {
+
+    protected override string Generate(ClassBuilder builder) {
         var sceneNameStrategy = Settings.GetSceneNameStrategy(this);
         var generateLoadMethods = Settings.GetGenerateLoadMethods(this);
         var loadMode = Settings.GetLoadMode(this);
         Settings.SetLastGenerationSettings(this, new LastGenerationSettings(sceneNameStrategy, generateLoadMethods, loadMode));
         
-        var builder = new ClassBuilder(this)
-            .AddUsing("UnityEngine")
+        builder.AddUsing("UnityEngine")
             .AddUsing("UnityEngine.SceneManagement");
         foreach (var (name, value) in GetScenes(sceneNameStrategy)) {
             var innerClassBuilder = builder.CreateInnerClassBuilder(name)
@@ -34,7 +31,7 @@ public class BuildScenesSorcerer : MagicValueSorcerer {
             if (generateLoadMethods) {
                 innerClassBuilder
                     .AddMethod("Load", $"SceneManager.LoadScene({PATH_FIELD}, {MODE_PARAM});", $"LoadSceneMode {MODE_PARAM} = LoadSceneMode.{loadMode}")
-                    .AddMethod("AsyncOperation", "LoadAsync", $"return SceneManager.LoadSceneAsync({PATH_FIELD}, {MODE_PARAM});", $"LoadSceneMode {MODE_PARAM} = LoadSceneMode.{loadMode}");
+                    .AddMethod("AsyncOperation", "LoadAsync", $"return SceneManager.LoadSceneAsync({PATH_FIELD}, {MODE_PARAM})!;", $"LoadSceneMode {MODE_PARAM} = LoadSceneMode.{loadMode}");
             }
         }
         return builder.Build();

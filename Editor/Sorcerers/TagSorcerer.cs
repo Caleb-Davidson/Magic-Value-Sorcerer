@@ -1,15 +1,12 @@
-﻿using Magic_Value_Sorcerer.Editor;
-using Magic_Value_Sorcerer.Editor.Sorcerers;
+﻿using JetBrains.Annotations;
 using UnityEditorInternal;
 
-[assembly: RegisterMagicValueSorcerer(typeof(TagSorcerer))]
-
 namespace Magic_Value_Sorcerer.Editor.Sorcerers {
-public class TagSorcerer : MagicValueSorcerer {
+[UsedImplicitly]
+public class TagSorcerer : DefaultMagicValueSorcerer {
     public override string ClassName => "Tags";
-    
-    public override string Generate() {
-        var builder = new ClassBuilder(this);
+
+    protected override string Generate(ClassBuilder builder) {
         foreach (var tag in InternalEditorUtility.tags) {
             builder.AddConst(tag);
         }

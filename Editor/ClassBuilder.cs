@@ -12,10 +12,10 @@ public class ClassBuilder {
     private List<string> methods = new();
     private List<ClassBuilder> innerClasses = new();
     
-    public ClassBuilder(MagicValueSorcerer sorcerer) {
-        @namespace = sorcerer.Namespace;
-        className = CleanName(sorcerer.ClassName.Replace(" ", ""));
-        sourceName = sorcerer.GetType().FullName!;
+    public ClassBuilder(string sourceName, string className, string @namespace) {
+        this.sourceName = sourceName;
+        this.className = CleanName(className.Replace(" ", ""));
+        this.@namespace = @namespace;
     }
     
     private ClassBuilder(string className) {
@@ -43,12 +43,22 @@ public class ClassBuilder {
     }
     
     public ClassBuilder AddConstField(string type, string name, string value) {
-        fields.Add($"public const {type} {CleanName(name).ToUpperInvariant()} = {value};");
+        fields.Add($"public const {type} {CleanConstantName(name)} = {value};");
         return this;
     }
     
-    public ClassBuilder AddStaticField(string type, string name, string value) {
+    public ClassBuilder AddStaticExpressionField(string type, string name, string value) {
         fields.Add($"public static {type} {CleanName(name)} => {value};");
+        return this;
+    }
+    
+    public ClassBuilder AddStaticGetterField(string type, string name, string body) {
+        fields.Add($"public static {type} {CleanName(name)} {{ get; }} = {body};");
+        return this;
+    }
+    
+    public ClassBuilder AddBlankFieldLine() {
+        fields.Add("");
         return this;
     }
 
@@ -118,20 +128,37 @@ public class ClassBuilder {
         );
     }
     
-    private static string CleanName(string name) {
-        var letters = name.ToArray();
+    public static string CleanName(string name, bool removeWhitespace = true, bool toSnakeCase = false) {
+        var letters = name.ToList();
         
         if (!char.IsLetter(letters[0])) {
             letters[0] = '_';
         }
         
-        for (var i = 1; i < letters.Length; i++) {
-            if (!char.IsLetterOrDigit(name[i])) {
+        for (var i = 1; i < letters.Count; i++) {
+            if (removeWhitespace && char.IsWhiteSpace(letters[i])) {
+                letters.RemoveAt(i);
+                i--;
+                continue;
+            }
+            
+            if (!char.IsLetterOrDigit(letters[i])) {
                 letters[i] = '_';
+                continue;
+            }
+            
+            if (toSnakeCase && char.IsUpper(letters[i]) && letters[i - 1] != '_') {
+                letters.Insert(i, '_');
+                i++;
+                continue;
             }
         }
         
-        return new string(letters);
+        return new string(letters.ToArray());
+    }
+    
+    public static string CleanConstantName(string name) {
+        return CleanName(name, false, true).ToUpperInvariant();
     }
 
     private const string CLASS_TEMPLATE = @"/* ------------------------------------------------------------------------------
